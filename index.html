@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StockLens</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--border:rgba(255,255,255,0.08);--text:#e6edf3;--text2:#8b949e;--accent:#1d9e75;--accent2:#0f6e56;--red:#f85149;--green:#3fb950;--amber:#d29922;--blue:#58a6ff;--sidebar-w:220px;--topbar-h:64px;--radius:10px;--card-border:1px solid var(--border)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
+.gate-box{background:var(--bg2);border:var(--card-border);border-radius:16px;padding:40px;width:340px;text-align:center}
+.gate-logo{display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.gate-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
+.gate-box input{width:100%;background:var(--bg);border:var(--card-border);border-radius:8px;color:var(--text);padding:11px 14px;font-size:14px;outline:none;margin-bottom:12px;text-align:center;letter-spacing:0.05em}
+.gate-box input:focus{border-color:var(--accent)}
+.gate-box button{width:100%;background:var(--accent);border:none;color:white;padding:11px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
+.gate-box button:hover{background:var(--accent2)}
+.gate-error{color:var(--red);font-size:12px;margin-top:10px;display:none}
+.app{display:none;min-height:100vh}.app.unlocked{display:flex}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:var(--card-border);display:flex;flex-direction:column;padding:20px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:10}
+.logo{display:flex;align-items:center;gap:10px;padding:0 20px 24px;font-size:16px;font-weight:600;color:var(--accent);border-bottom:var(--card-border);margin-bottom:12px}
+nav{padding:0 10px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:13px;transition:all 0.15s;margin-bottom:2px}
+.nav-item:hover{background:var(--bg3);color:var(--text)}.nav-item.active{background:rgba(29,158,117,0.15);color:var(--accent)}
+.sidebar-watchlist{margin-top:auto;padding:16px 10px 0;border-top:var(--card-border)}
+.watchlist-header{display:flex;justify-content:space-between;align-items:center;padding:0 8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2)}
+.icon-btn{background:none;border:1px solid var(--border);color:var(--text2);border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+.watchlist-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;transition:background 0.12s;margin-bottom:2px}
+.watchlist-item:hover{background:var(--bg3)}.watchlist-item .ticker{font-weight:600;color:var(--text)}.watchlist-item .price{color:var(--text2);font-size:12px}
+.watchlist-item .change-pos{color:var(--green);font-size:11px}.watchlist-item .change-neg{color:var(--red);font-size:11px}
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{height:var(--topbar-h);background:var(--bg2);border-bottom:var(--card-border);display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:5}
+.search-wrap{display:flex;align-items:center;gap:10px;background:var(--bg);border:var(--card-border);border-radius:8px;padding:0 12px;flex:1;max-width:500px}
+.search-wrap input{background:none;border:none;color:var(--text);font-size:14px;flex:1;outline:none;padding:10px 0}
+.search-wrap input::placeholder{color:var(--text2)}
+.search-wrap button{background:var(--accent);border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap}
+.search-wrap button:hover{background:var(--accent2)}
+.api-config{display:flex;align-items:center;gap:8px}
+.api-config input{background:var(--bg);border:var(--card-border);border-radius:8px;color:var(--text);font-size:12px;padding:7px 10px;outline:none;width:190px}
+.api-hint{font-size:11px;color:var(--text2);white-space:nowrap}
+.view{display:none;padding:28px 24px}.view.active{display:block}
+.view-header{margin-bottom:24px}.view-header h1{font-size:22px;font-weight:600;margin-bottom:4px}.view-header p{color:var(--text2);font-size:14px}
+.card{background:var(--bg2);border:var(--card-border);border-radius:var(--radius);padding:20px}
+.stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.stock-card{background:var(--bg2);border:var(--card-border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:border-color 0.15s,transform 0.1s}
+.stock-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.stock-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.stock-card-ticker{font-weight:700;font-size:16px}.stock-card-exchange{font-size:11px;color:var(--text2);margin-top:2px}
+.stock-badge{font-size:10px;background:rgba(29,158,117,0.15);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:600}
+.stock-card-price{font-size:26px;font-weight:700;margin-bottom:4px}
+.stock-card-change-pos{color:var(--green);font-size:13px;font-weight:500}.stock-card-change-neg{color:var(--red);font-size:13px;font-weight:500}
+.stock-card-meta{margin-top:12px;padding-top:12px;border-top:var(--card-border);display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.meta-item .label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em}.meta-item .val{font-size:13px;font-weight:500;margin-top:2px}
+.index-bar{display:flex;gap:20px;flex-wrap:wrap}
+.index-chip{background:var(--bg2);border:var(--card-border);border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.index-chip .idx-name{font-size:12px;color:var(--text2)}.index-chip .idx-val{font-size:15px;font-weight:600}
+.index-chip .idx-chg-pos{color:var(--green);font-size:12px}.index-chip .idx-chg-neg{color:var(--red);font-size:12px}
+.intrinsic-controls{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.intrinsic-controls label{font-size:13px;color:var(--text2)}
+.intrinsic-controls select{background:var(--bg2);border:var(--card-border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;outline:none}
+.intrinsic-controls button{background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500}
+.intrinsic-table-wrap{overflow-x:auto}
+table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
+.iv-table th{background:var(--bg3);color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;padding:10px 14px;text-align:right;font-weight:600;border-bottom:var(--card-border)}
+.iv-table th:first-child{text-align:left}.iv-table td{padding:12px 14px;border-bottom:var(--card-border);text-align:right;vertical-align:middle}
+.iv-table td:first-child{text-align:left;font-weight:600}.iv-table tr:hover td{background:var(--bg3)}
+.level-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:5px;font-size:12px;font-weight:500}
+.level-buy{background:rgba(63,185,80,0.12);color:var(--green)}.level-fair{background:rgba(210,153,34,0.12);color:var(--amber)}.level-overval{background:rgba(248,81,73,0.12);color:var(--red)}
+.current-price-row{font-weight:700;color:var(--blue)}
+.dcf-layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.dcf-inputs h3{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px}
+.form-group{margin-bottom:16px}.form-group label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px}
+.val-display{color:var(--accent);font-weight:600}
+.form-group input[type=text],.form-group input[type=number]{width:100%;background:var(--bg);border:var(--card-border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;outline:none;transition:border-color 0.15s}
+.form-group input:focus{border-color:var(--accent)}.form-group input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+.dcf-results{display:flex;flex-direction:column;gap:16px}
+.dcf-result-card{text-align:center;padding:24px}.result-label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text2);margin-bottom:8px}
+.result-value{font-size:36px;font-weight:700;color:var(--accent);margin-bottom:6px}.result-sub{font-size:13px;color:var(--text2)}
+.dcf-projection-table{padding:20px}.dcf-projection-table h3{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:14px}
+.proj-table{width:100%;border-collapse:collapse;font-size:12px}
+.proj-table th{background:var(--bg3);color:var(--text2);padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:var(--card-border)}
+.proj-table th:first-child{text-align:left}.proj-table td{padding:8px 10px;border-bottom:var(--card-border);text-align:right}.proj-table td:first-child{text-align:left}
+.company-info-mini{background:var(--bg3);border-radius:8px;padding:12px;font-size:12px;color:var(--text2);margin-top:10px;display:none}
+.company-info-mini .mini-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.company-info-mini .mini-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.company-info-mini .mini-meta span{background:var(--bg2);padding:2px 8px;border-radius:4px;font-size:11px}
+.company-search-bar{display:flex;gap:10px;margin-bottom:24px}
+.company-search-bar input{background:var(--bg2);border:var(--card-border);border-radius:8px;color:var(--text);padding:10px 14px;font-size:14px;outline:none;width:240px;transition:border-color 0.15s}
+.company-search-bar input:focus{border-color:var(--accent)}
+.company-search-bar button{background:var(--accent);border:none;color:white;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500}
+.company-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:var(--card-border)}
+.company-logo{width:52px;height:52px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--accent);border:var(--card-border);overflow:hidden}
+.company-logo img{width:100%;height:100%;object-fit:contain}
+.company-title h2{font-size:22px;font-weight:700;margin-bottom:2px}.company-title .co-sub{font-size:13px;color:var(--text2)}
+.company-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:var(--card-border);border-radius:8px;padding:14px}
+.stat-card .s-label{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text2);margin-bottom:4px}
+.stat-card .s-val{font-size:18px;font-weight:600}.stat-card .s-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--bg2);border:var(--card-border);border-radius:var(--radius);padding:20px}
+.chart-card h4{font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text2);margin-bottom:16px}
+.ai-analysis-card{background:var(--bg2);border:var(--card-border);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.ai-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.ai-header h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ai-badge{background:rgba(29,158,117,0.2);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600}
+.ai-content{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap}.ai-content.loading{color:var(--text2);font-style:italic}
+.btn-ai{background:rgba(29,158,117,0.15);border:1px solid rgba(29,158,117,0.3);color:var(--accent);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500}
+.btn-ai:hover{background:rgba(29,158,117,0.25)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal-box{background:var(--bg2);border:var(--card-border);border-radius:14px;padding:28px;width:320px}
+.modal-box h3{font-size:17px;font-weight:600;margin-bottom:16px}
+.modal-box input{width:100%;background:var(--bg);border:var(--card-border);border-radius:8px;color:var(--text);padding:10px 14px;font-size:14px;outline:none;margin-bottom:16px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.btn-primary{background:var(--accent);border:none;color:white;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500}
+.btn-secondary{background:var(--bg3);border:var(--card-border);color:var(--text);padding:9px 20px;border-radius:8px;cursor:pointer;font-size:13px}
+.loading-state,.empty-state{display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text2);font-size:14px;flex-direction:column;gap:12px}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-badge{background:rgba(248,81,73,0.1);color:var(--red);border-radius:8px;padding:12px 16px;font-size:13px;margin:16px 0}
+.co-description{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:24px;padding:16px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--accent)}
+@media(max-width:900px){.dcf-layout{grid-template-columns:1fr}.charts-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.sidebar{display:none}.main{margin-left:0}.topbar{flex-wrap:wrap;height:auto;padding:12px}.api-config{display:none}}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      StockLens
+    </div>
+    <div class="gate-sub">Personal stock research dashboard</div>
+    <input type="password" id="gateInput" placeholder="Enter password" autofocus/>
+    <button id="gateBtn">Enter</button>
+    <div class="gate-error" id="gateError">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      StockLens
+    </div>
+    <nav>
+      <a href="#" class="nav-item active" data-view="dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard
+      </a>
+      <a href="#" class="nav-item" data-view="intrinsic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Intrinsic Value
+      </a>
+      <a href="#" class="nav-item" data-view="dcf">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Reverse DCF
+      </a>
+      <a href="#" class="nav-item" data-view="company">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Company Detail
+      </a>
+    </nav>
+    <div class="sidebar-watchlist">
+      <div class="watchlist-header"><span>Watchlist</span><button id="addTickerBtn" class="icon-btn">+</button></div>
+      <div id="watchlistItems"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search ticker or company name..."/>
+        <button id="searchBtn">Analyse</button>
+      </div>
+      <div class="api-config">
+        <input type="password" id="apiKeyInput" placeholder="FMP API Key (optional)"/>
+        <span class="api-hint">or use demo data</span>
+      </div>
+    </header>
+
+    <div id="view-dashboard" class="view active">
+      <div class="view-header"><h1>Market Dashboard</h1><p>Your watchlist at a glance</p></div>
+      <div id="dashboardCards" class="stock-grid"></div>
+      <div class="index-bar" id="indexBar"></div>
+    </div>
+
+    <div id="view-intrinsic" class="view">
+      <div class="view-header"><h1>Intrinsic Value Levels</h1><p>Buy zones based on margin of safety tiers</p></div>
+      <div class="intrinsic-controls">
+        <label>Watchlist stocks</label>
+        <select id="intrinsicSelect"></select>
+        <button id="intrinsicLoadBtn">Load</button>
+      </div>
+      <div id="intrinsicTable"></div>
+    </div>
+
+    <div id="view-dcf" class="view">
+      <div class="view-header"><h1>Reverse DCF Calculator</h1><p>What growth rate does the current price imply?</p></div>
+      <div class="dcf-layout">
+        <div class="dcf-inputs card">
+          <h3>Company Info</h3>
+          <div class="form-group">
+            <label>Ticker</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="dcfTicker" placeholder="e.g. AAPL" style="flex:1"/>
+              <button id="dcfLoadBtn" class="btn-primary">Load</button>
+            </div>
+          </div>
+          <div id="dcfCompanyInfo" class="company-info-mini"></div>
+          <h3 style="margin-top:20px">DCF Assumptions</h3>
+          <div class="form-group"><label>Current EPS ($) <span id="dcfEpsDisplay" class="val-display">—</span></label><input type="number" id="dcfEps" step="0.01" placeholder="Auto-loaded"/></div>
+          <div class="form-group"><label>Discount Rate (WACC %) <span id="dcfWaccDisplay" class="val-display">10%</span></label><input type="range" id="dcfWacc" min="5" max="20" value="10" step="0.5" oninput="document.getElementById('dcfWaccDisplay').textContent=this.value+'%';calcDCF()"/></div>
+          <div class="form-group"><label>Terminal Growth Rate (%) <span id="dcfTermDisplay" class="val-display">3%</span></label><input type="range" id="dcfTerminal" min="0" max="6" value="3" step="0.5" oninput="document.getElementById('dcfTermDisplay').textContent=this.value+'%';calcDCF()"/></div>
+          <div class="form-group"><label>Projection Years <span id="dcfYearsDisplay" class="val-display">10</span></label><input type="range" id="dcfYears" min="5" max="20" value="10" step="1" oninput="document.getElementById('dcfYearsDisplay').textContent=this.value;calcDCF()"/></div>
+          <div class="form-group"><label>Current Market Price ($)</label><input type="number" id="dcfPrice" step="0.01" placeholder="Auto-loaded" oninput="calcDCF()"/></div>
+        </div>
+        <div class="dcf-results">
+          <div class="dcf-result-card card"><div class="result-label">Implied Growth Rate</div><div class="result-value" id="dcfImpliedGrowth">—</div><div class="result-sub" id="dcfImpliedSub">Enter EPS and Price to calculate</div></div>
+          <div class="dcf-result-card card"><div class="result-label">Intrinsic Value (at implied growth)</div><div class="result-value" id="dcfIntrinsicVal">—</div><div class="result-sub" id="dcfMarginSub">—</div></div>
+          <div class="dcf-projection-table card"><h3>10-Year Projections</h3><div id="dcfProjectionTable"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-company" class="view">
+      <div class="view-header"><h1>Company Detail</h1><p>Fundamentals, financials & AI analysis</p></div>
+      <div class="company-search-bar">
+        <input type="text" id="companyTickerInput" placeholder="Enter ticker (e.g. MSFT)"/>
+        <button id="companyLoadBtn">Load Company</button>
+      </div>
+      <div id="companyDetail"></div>
+    </div>
+  </main>
+</div>
+
+<div id="addModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3>Add to Watchlist</h3>
+    <input type="text" id="newTickerInput" placeholder="Ticker (e.g. NVDA)"/>
+    <div class="modal-actions">
+      <button id="modalCancel" class="btn-secondary">Cancel</button>
+      <button id="modalAdd" class="btn-primary">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Password gate ──
+let SESSION_PASSWORD="";
+
+async function tryUnlock(){
+  const pw=document.getElementById("gateInput").value.trim();
+  if(!pw)return;
+  document.getElementById("gateBtn").textContent="Checking…";
+  try{
+    const res=await fetch("/api/analyse",{method:"POST",headers:{"Content-Type":"application/json","x-site-password":pw},body:JSON.stringify({})});
+    if(res.status===400||res.status===200){
+      unlock(pw);
+    }else if(res.status===401){
+      document.getElementById("gateError").style.display="block";
+    }else{
+      unlock(pw); // fallback for local use
+    }
+  }catch(e){
+    unlock(pw); // no server = local file mode
+  }
+  document.getElementById("gateBtn").textContent="Enter";
+}
+
+function unlock(pw){
+  SESSION_PASSWORD=pw;
+  sessionStorage.setItem("slpw",pw);
+  document.getElementById("gate").style.display="none";
+  document.getElementById("app").classList.add("unlocked");
+  renderDashboard();
+  populateIntrinsicSelect();
+}
+
+document.getElementById("gateBtn").addEventListener("click",tryUnlock);
+document.getElementById("gateInput").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock()});
+const savedPw=sessionStorage.getItem("slpw");
+if(savedPw){unlock(savedPw)}
+
+// ── Demo data ──
+const DEMO_DATA={AAPL:{name:"Apple Inc.",ticker:"AAPL",exchange:"NASDAQ",sector:"Technology",price:213.49,change:2.31,changePct:1.09,marketCap:3280000000000,pe:33.2,eps:6.43,revenue:391035000000,netIncome:97000000000,freeCashFlow:111440000000,roe:147.25,grossMargin:45.96,netMargin:24.81,beta:1.24,dividendYield:0.51,week52High:237.23,week52Low:164.08,description:"Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",revenueHistory:[274515,365817,394328,383285,391035],earningsHistory:[57411,94680,99803,96995,97000],fcfHistory:[73365,92953,111443,99584,111440],years:[2020,2021,2022,2023,2024]},MSFT:{name:"Microsoft Corporation",ticker:"MSFT",exchange:"NASDAQ",sector:"Technology",price:468.33,change:-3.21,changePct:-0.68,marketCap:3480000000000,pe:36.1,eps:12.97,revenue:245122000000,netIncome:88136000000,freeCashFlow:73673000000,roe:38.82,grossMargin:69.76,netMargin:35.96,beta:0.89,dividendYield:0.72,week52High:497.34,week52Low:376.15,description:"Microsoft Corporation develops and supports software, services, devices, and solutions worldwide.",revenueHistory:[143015,168088,198270,211915,245122],earningsHistory:[44281,61271,72738,72361,88136],fcfHistory:[45234,56118,65149,59475,73673],years:[2020,2021,2022,2023,2024]},NVDA:{name:"NVIDIA Corporation",ticker:"NVDA",exchange:"NASDAQ",sector:"Technology",price:131.38,change:4.52,changePct:3.56,marketCap:3200000000000,pe:50.4,eps:2.61,revenue:130497000000,netIncome:72880000000,freeCashFlow:67854000000,roe:123.77,grossMargin:74.99,netMargin:55.85,beta:1.67,dividendYield:0.03,week52High:149.43,week52Low:75.61,description:"NVIDIA Corporation provides graphics, computing, and networking solutions including data center AI chips.",revenueHistory:[16675,26914,26974,60922,130497],earningsHistory:[4332,9752,4368,29760,72880],fcfHistory:[4694,8131,3808,27021,67854],years:[2020,2021,2022,2023,2024]},GOOGL:{name:"Alphabet Inc.",ticker:"GOOGL",exchange:"NASDAQ",sector:"Communication Services",price:189.30,change:1.14,changePct:0.61,marketCap:2300000000000,pe:23.8,eps:7.95,revenue:350018000000,netIncome:94000000000,freeCashFlow:72764000000,roe:30.12,grossMargin:57.08,netMargin:26.86,beta:1.07,dividendYield:0.49,week52High:207.05,week52Low:154.84,description:"Alphabet operates Google Search, YouTube, Maps, Gmail, Android, Google Cloud, and other businesses.",revenueHistory:[182527,257637,282836,307394,350018],earningsHistory:[40269,76033,59972,73795,94000],fcfHistory:[42843,67012,60010,69495,72764],years:[2020,2021,2022,2023,2024]},AMZN:{name:"Amazon.com Inc.",ticker:"AMZN",exchange:"NASDAQ",sector:"Consumer Discretionary",price:229.15,change:-1.89,changePct:-0.82,marketCap:2420000000000,pe:43.1,eps:5.32,revenue:637959000000,netIncome:59248000000,freeCashFlow:38531000000,roe:22.87,grossMargin:48.88,netMargin:9.29,beta:1.15,dividendYield:0,week52High:242.52,week52Low:157.70,description:"Amazon operates e-commerce, cloud computing (AWS), advertising, and logistics services worldwide.",revenueHistory:[386064,469822,513983,574785,637959],earningsHistory:[-2722,33364,-2722,30425,59248],fcfHistory:[26378,2584,-11569,32026,38531],years:[2020,2021,2022,2023,2024]}};
+const DEMO_INDICES=[{name:"S&P 500",value:5847.24,change:0.62},{name:"NASDAQ",value:19024.73,change:1.12},{name:"DOW",value:42888.20,change:0.31},{name:"VIX",value:14.32,change:-3.21}];
+const DEFAULT_WATCHLIST=["AAPL","MSFT","NVDA","GOOGL","AMZN"];
+let watchlist=JSON.parse(localStorage.getItem("stocklens_watchlist")||JSON.stringify(DEFAULT_WATCHLIST));
+function saveWatchlist(){localStorage.setItem("stocklens_watchlist",JSON.stringify(watchlist))}
+function formatNumber(n){if(n===null||n===undefined||isNaN(n))return"—";if(Math.abs(n)>=1e12)return"$"+(n/1e12).toFixed(2)+"T";if(Math.abs(n)>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(Math.abs(n)>=1e6)return"$"+(n/1e6).toFixed(2)+"M";return n.toFixed(2)}
+function formatPct(n){if(n===null||n===undefined||isNaN(n))return"—";return(n>=0?"+":"")+n.toFixed(2)+"%"}
+function changeClass(n){return n>=0?"stock-card-change-pos":"stock-card-change-neg"}
+function changeSymbol(n){return n>=0?"▲":"▼"}
+
+// ── FMP stable API (new endpoints) ──
+const FMP="https://financialmodelingprep.com/stable";
+function getApiKey(){return document.getElementById("apiKeyInput").value.trim()}
+
+async function fetchStock(ticker){
+  const key=getApiKey();
+  ticker=ticker.toUpperCase().trim();
+  if(!key){return DEMO_DATA[ticker]||null}
+  try{
+    // New stable endpoints
+    const [profileRes, quoteRes, incomeRes, cashflowRes] = await Promise.all([
+      fetch(`${FMP}/profile?symbol=${ticker}&apikey=${key}`).then(r=>r.json()),
+      fetch(`${FMP}/quote?symbol=${ticker}&apikey=${key}`).then(r=>r.json()),
+      fetch(`${FMP}/income-statement?symbol=${ticker}&limit=5&apikey=${key}`).then(r=>r.json()),
+      fetch(`${FMP}/cash-flow-statement?symbol=${ticker}&limit=5&apikey=${key}`).then(r=>r.json()),
+    ]);
+
+    const p=Array.isArray(profileRes)?profileRes[0]:profileRes;
+    const q=Array.isArray(quoteRes)?quoteRes[0]:quoteRes;
+    const income=Array.isArray(incomeRes)?incomeRes:[];
+    const cashflow=Array.isArray(cashflowRes)?cashflowRes:[];
+
+    if(!p||!q)return null;
+
+    const revenueHistory=income.map(i=>i.revenue).reverse();
+    const earningsHistory=income.map(i=>i.netIncome).reverse();
+    const fcfHistory=cashflow.map(i=>i.freeCashFlow||i.operatingCashFlow).reverse();
+    const years=income.map(i=>new Date(i.date).getFullYear()).reverse();
+
+    const revenue=income[0]?.revenue;
+    const grossProfit=income[0]?.grossProfit;
+    const grossMargin=revenue&&grossProfit?(grossProfit/revenue)*100:null;
+    const netIncomeRatio=income[0]?.netIncomeRatio;
+    const netMargin=netIncomeRatio?netIncomeRatio*100:null;
+
+    return{
+      name:p.companyName||p.name,
+      ticker:p.symbol||ticker,
+      exchange:p.exchangeShortName||p.exchange,
+      sector:p.sector,
+      price:q.price,
+      change:q.change,
+      changePct:q.changesPercentage||q.changePercentage,
+      marketCap:p.mktCap||q.marketCap,
+      pe:q.pe||p.pe,
+      eps:q.eps||p.eps,
+      revenue,
+      netIncome:income[0]?.netIncome,
+      freeCashFlow:cashflow[0]?.freeCashFlow||cashflow[0]?.operatingCashFlow,
+      roe:p.returnOnEquityTTM?p.returnOnEquityTTM*100:null,
+      grossMargin,
+      netMargin,
+      beta:p.beta,
+      dividendYield:p.dividendYield?p.dividendYield*100:0,
+      week52High:q.yearHigh||q["52WeekHigh"],
+      week52Low:q.yearLow||q["52WeekLow"],
+      description:p.description,
+      image:p.image,
+      revenueHistory,earningsHistory,fcfHistory,years
+    };
+  }catch(e){console.error("FMP error:",e);return null}
+}
+
+async function fetchMultiple(tickers){return Promise.all(tickers.map(t=>fetchStock(t)))}
+
+async function fetchAIAnalysis(s){
+  try{
+    const res=await fetch("/api/analyse",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-site-password":SESSION_PASSWORD},
+      body:JSON.stringify({stockData:{name:s.name,ticker:s.ticker,sector:s.sector,price:s.price,marketCap:formatNumber(s.marketCap),pe:s.pe,eps:s.eps,revenue:formatNumber(s.revenue),netIncome:formatNumber(s.netIncome),freeCashFlow:formatNumber(s.freeCashFlow),grossMargin:s.grossMargin?.toFixed(1),netMargin:s.netMargin?.toFixed(1),roe:s.roe?.toFixed(1),beta:s.beta,week52High:s.week52High,week52Low:s.week52Low,description:s.description?.substring(0,400)}})
+    });
+    const data=await res.json();
+    if(data.error)return"Error: "+data.error;
+    return data.analysis||"No analysis returned.";
+  }catch(e){return"AI analysis unavailable. Make sure you are on the hosted site."}
+}
+
+// ── Dashboard ──
+async function renderDashboard(){
+  const container=document.getElementById("dashboardCards");
+  const indexBar=document.getElementById("indexBar");
+  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Loading market data…</span></div>`;
+  const stocks=await fetchMultiple(watchlist);
+  indexBar.innerHTML=DEMO_INDICES.map(idx=>`<div class="index-chip"><div><div class="idx-name">${idx.name}</div><div class="idx-val">${idx.value.toLocaleString("en-US",{minimumFractionDigits:2})}</div></div><div class="${idx.change>=0?"idx-chg-pos":"idx-chg-neg"}">${changeSymbol(idx.change)} ${Math.abs(idx.change).toFixed(2)}%</div></div>`).join("");
+  container.innerHTML="";
+  stocks.forEach(stock=>{
+    if(!stock)return;
+    const card=document.createElement("div");card.className="stock-card";
+    card.innerHTML=`<div class="stock-card-header"><div><div class="stock-card-ticker">${stock.ticker}</div><div class="stock-card-exchange">${stock.exchange||""} · ${stock.sector||""}</div></div><span class="stock-badge">${stock.sector?.substring(0,4)||"EQ"}</span></div><div class="stock-card-price">$${stock.price?.toFixed(2)??"—"}</div><div class="${changeClass(stock.changePct)}">${changeSymbol(stock.changePct)} ${Math.abs(stock.changePct??0).toFixed(2)}% today</div><div class="stock-card-meta"><div class="meta-item"><div class="label">Market Cap</div><div class="val">${formatNumber(stock.marketCap)}</div></div><div class="meta-item"><div class="label">P/E Ratio</div><div class="val">${stock.pe?.toFixed(1)??"—"}</div></div><div class="meta-item"><div class="label">EPS</div><div class="val">$${stock.eps?.toFixed(2)??"—"}</div></div><div class="meta-item"><div class="label">Div. Yield</div><div class="val">${stock.dividendYield?.toFixed(2)??"0.00"}%</div></div></div>`;
+    card.addEventListener("click",()=>{document.getElementById("companyTickerInput").value=stock.ticker;switchView("company");loadCompanyDetail(stock.ticker)});
+    container.appendChild(card);
+  });
+  renderWatchlistSidebar(stocks);
+}
+
+function renderWatchlistSidebar(stocks){
+  const el=document.getElementById("watchlistItems");
+  if(!stocks||!stocks.length){el.innerHTML="";return}
+  el.innerHTML=stocks.map(s=>s?`<div class="watchlist-item" onclick="document.getElementById('companyTickerInput').value='${s.ticker}';switchView('company');loadCompanyDetail('${s.ticker}')"><div><div class="ticker">${s.ticker}</div><div class="price">$${s.price?.toFixed(2)??"—"}</div></div><div class="${s.changePct>=0?"change-pos":"change-neg"}">${formatPct(s.changePct)}</div></div>`:"").join("");
+}
+
+function addToWatchlist(ticker){
+  ticker=ticker.toUpperCase().trim();
+  if(!ticker||watchlist.includes(ticker))return;
+  watchlist.push(ticker);saveWatchlist();renderDashboard();populateIntrinsicSelect();
+}
+
+// ── Intrinsic Value ──
+function populateIntrinsicSelect(){
+  document.getElementById("intrinsicSelect").innerHTML=watchlist.map(t=>`<option value="${t}">${t}</option>`).join("");
+}
+
+async function renderIntrinsicTable(ticker){
+  const container=document.getElementById("intrinsicTable");
+  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Calculating…</span></div>`;
+  const stock=await fetchStock(ticker);
+  if(!stock){container.innerHTML=`<div class="error-badge">Could not load ${ticker}.</div>`;return}
+  const eps=stock.eps||1,wacc=0.10,g1=0.12,gT=0.03,yrs=10;
+  let dcf=0,ce=eps;
+  for(let i=1;i<=yrs;i++){ce*=(1+g1);dcf+=ce/Math.pow(1+wacc,i)}
+  dcf+=(ce*(1+gT))/(wacc-gT)/Math.pow(1+wacc,yrs);
+  const iv=Math.max(dcf,1),cp=stock.price;
+  const levels=[{label:"Level 1 — 10% Discount",pct:0.90,mos:"10%"},{label:"Level 2 — 20% Discount",pct:0.80,mos:"20%"},{label:"Level 3 — 30% Discount",pct:0.70,mos:"30%"},{label:"Level 4 — 40% Discount",pct:0.60,mos:"40%"}];
+  function pb(lp){if(cp<=lp)return`<span class="level-badge level-buy">✓ Buy Zone</span>`;if(cp<=lp*1.15)return`<span class="level-badge level-fair">~ Near</span>`;return`<span class="level-badge level-overval">✗ Above</span>`}
+  const pd=((cp/iv)-1)*100;
+  const pdLabel=pd>=0?`<span style="color:var(--red)">+${pd.toFixed(1)}% premium</span>`:`<span style="color:var(--green)">${pd.toFixed(1)}% discount</span>`;
+  container.innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><div style="font-size:20px;font-weight:700">${stock.name} (${stock.ticker})</div><div style="font-size:13px;color:var(--text2);margin-top:4px">DCF Intrinsic Value (10% WACC, 12% growth, 3% terminal)</div></div><div style="text-align:right"><div style="font-size:28px;font-weight:700;color:var(--accent)">$${iv.toFixed(2)}</div><div style="font-size:13px;margin-top:4px">${pdLabel}</div></div></div></div><div class="intrinsic-table-wrap card"><table class="iv-table"><thead><tr><th>Level</th><th>Target Price</th><th>Margin of Safety</th><th>Current Price</th><th>Status</th></tr></thead><tbody><tr class="current-price-row"><td>📍 Current Price</td><td>$${cp.toFixed(2)}</td><td>—</td><td>$${cp.toFixed(2)}</td><td>—</td></tr>${levels.map(lv=>{const t=iv*lv.pct;return`<tr><td>${lv.label}</td><td>$${t.toFixed(2)}</td><td>${lv.mos}</td><td>$${cp.toFixed(2)}</td><td>${pb(t)}</td></tr>`}).join("")}</tbody></table></div><div style="margin-top:14px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ Simplified DCF model. Research purposes only — not investment advice.</div>`;
+}
+
+// ── Reverse DCF ──
+async function loadDCFStock(){
+  const ticker=document.getElementById("dcfTicker").value.trim().toUpperCase();if(!ticker)return;
+  const stock=await fetchStock(ticker);
+  if(!stock){const el=document.getElementById("dcfCompanyInfo");el.style.display="block";el.innerHTML=`<div style="color:var(--red)">Ticker not found.</div>`;return}
+  document.getElementById("dcfEps").value=stock.eps?.toFixed(2)??"";
+  document.getElementById("dcfPrice").value=stock.price?.toFixed(2)??"";
+  document.getElementById("dcfEpsDisplay").textContent=`$${stock.eps?.toFixed(2)??"—"}`;
+  const el=document.getElementById("dcfCompanyInfo");el.style.display="block";
+  el.innerHTML=`<div class="mini-name">${stock.name}</div><div class="mini-meta"><span>${stock.exchange}</span><span>${stock.sector}</span><span>P/E: ${stock.pe?.toFixed(1)??"—"}</span><span>${formatNumber(stock.marketCap)}</span></div>`;
+  calcDCF();
+}
+
+function dcfValueAt(eps,g,wacc,terminal,years){
+  let pv=0,e=eps;
+  for(let i=1;i<=years;i++){e*=(1+g);pv+=e/Math.pow(1+wacc,i)}
+  pv+=(e*(1+terminal))/(wacc-terminal)/Math.pow(1+wacc,years);return pv;
+}
+
+function calcDCF(){
+  const eps=parseFloat(document.getElementById("dcfEps").value);
+  const price=parseFloat(document.getElementById("dcfPrice").value);
+  const wacc=parseFloat(document.getElementById("dcfWacc").value)/100;
+  const terminal=parseFloat(document.getElementById("dcfTerminal").value)/100;
+  const years=parseInt(document.getElementById("dcfYears").value);
+  if(!eps||!price||eps<=0||price<=0){["dcfImpliedGrowth","dcfIntrinsicVal"].forEach(id=>document.getElementById(id).textContent="—");document.getElementById("dcfImpliedSub").textContent="Enter EPS and current price";document.getElementById("dcfMarginSub").textContent="—";return}
+  let lo=-0.50,hi=5.0,ig=0;
+  for(let i=0;i<80;i++){const mid=(lo+hi)/2;if(dcfValueAt(eps,mid,wacc,terminal,years)<price)lo=mid;else hi=mid;ig=mid}
+  const iv=dcfValueAt(eps,ig,wacc,terminal,years);
+  const mos=((iv/price)-1)*100;
+  document.getElementById("dcfImpliedGrowth").textContent=(ig*100).toFixed(2)+"%";
+  document.getElementById("dcfIntrinsicVal").textContent="$"+iv.toFixed(2);
+  const igEl=document.getElementById("dcfImpliedGrowth");
+  igEl.style.color=ig>0.20?"var(--red)":ig>0.12?"var(--amber)":"var(--green)";
+  const verdict=ig>0.25?"🔴 Very high growth implied — significant execution risk":ig>0.15?"🟡 Above-average growth priced in — watch for delivery":ig>0.08?"🟢 Reasonable growth expectation":"🟢 Conservative implied growth — upside if growth exceeds this";
+  document.getElementById("dcfImpliedSub").textContent=verdict;
+  document.getElementById("dcfMarginSub").textContent=mos>=0?`+${mos.toFixed(1)}% above current price`:`${mos.toFixed(1)}% — priced at premium`;
+  const yr=new Date().getFullYear();let rows="",e=eps,cum=0;
+  for(let i=1;i<=Math.min(years,10);i++){e*=(1+ig);const pv=e/Math.pow(1+wacc,i);cum+=pv;rows+=`<tr><td>${yr+i}</td><td>$${e.toFixed(2)}</td><td>${(ig*100).toFixed(1)}%</td><td>$${pv.toFixed(2)}</td><td>$${cum.toFixed(2)}</td></tr>`}
+  const tv=(e*(1+terminal))/(wacc-terminal),pvTv=tv/Math.pow(1+wacc,years);
+  document.getElementById("dcfProjectionTable").innerHTML=`<table class="proj-table"><thead><tr><th style="text-align:left">Year</th><th>EPS</th><th>Growth</th><th>PV</th><th>Cum. PV</th></tr></thead><tbody>${rows}<tr style="border-top:1px solid var(--border);font-weight:600"><td>Terminal</td><td>—</td><td>${(terminal*100).toFixed(1)}%</td><td>$${pvTv.toFixed(2)}</td><td>—</td></tr></tbody></table>`;
+}
+
+// ── Company Detail ──
+let companyCharts={};
+async function loadCompanyDetail(ticker){
+  const container=document.getElementById("companyDetail");
+  ticker=(ticker||document.getElementById("companyTickerInput").value).trim().toUpperCase();
+  if(!ticker)return;
+  Object.values(companyCharts).forEach(c=>c?.destroy());companyCharts={};
+  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Loading ${ticker}…</span></div>`;
+  const stock=await fetchStock(ticker);
+  if(!stock){container.innerHTML=`<div class="error-badge">Could not load "${ticker}". Check the ticker or enter your FMP API key.</div>`;return}
+  const logoHtml=stock.image?`<img src="${stock.image}" alt="${stock.name}" onerror="this.style.display='none'"/>`:stock.ticker.charAt(0);
+  const pch=`<span class="${stock.changePct>=0?"stock-card-change-pos":"stock-card-change-neg"}">${changeSymbol(stock.changePct)} $${Math.abs(stock.change??0).toFixed(2)} (${Math.abs(stock.changePct??0).toFixed(2)}%)</span>`;
+  function sc(l,v,s){return`<div class="stat-card"><div class="s-label">${l}</div><div class="s-val">${v}</div>${s?`<div class="s-sub">${s}</div>`:""}</div>`}
+  container.innerHTML=`<div class="card"><div class="company-header"><div class="company-logo">${logoHtml}</div><div class="company-title"><h2>${stock.name}</h2><div class="co-sub">${stock.ticker} · ${stock.exchange??""} · ${stock.sector??""}</div><div style="display:flex;align-items:center;gap:14px;margin-top:8px"><span style="font-size:28px;font-weight:700">$${stock.price?.toFixed(2)??"—"}</span>${pch}</div></div></div>${stock.description?`<div class="co-description">${stock.description.substring(0,500)}${stock.description.length>500?"…":""}</div>`:""}<div class="company-stats">${sc("Market Cap",formatNumber(stock.marketCap),"")}${sc("P/E Ratio",stock.pe?.toFixed(1)??"—","trailing")}${sc("EPS (TTM)","$"+(stock.eps?.toFixed(2)??"—"),"")}${sc("Revenue",formatNumber(stock.revenue),"LTM")}${sc("Net Income",formatNumber(stock.netIncome),"LTM")}${sc("Free Cash Flow",formatNumber(stock.freeCashFlow),"LTM")}${sc("Gross Margin",(stock.grossMargin?.toFixed(1)??"—")+"%","")}${sc("Net Margin",(stock.netMargin?.toFixed(1)??"—")+"%","")}${sc("ROE",(stock.roe?.toFixed(1)??"—")+"%","")}${sc("Beta",stock.beta?.toFixed(2)??"—","vs market")}${sc("52W High","$"+(stock.week52High?.toFixed(2)??"—"),"")}${sc("52W Low","$"+(stock.week52Low?.toFixed(2)??"—"),"")}</div></div><div class="charts-grid" style="margin-top:16px"><div class="chart-card"><h4>Revenue History</h4><div style="position:relative;height:220px"><canvas id="revenueChart"></canvas></div></div><div class="chart-card"><h4>Net Income & Free Cash Flow</h4><div style="position:relative;height:220px"><canvas id="earningsChart"></canvas></div></div></div><div class="ai-analysis-card"><div class="ai-header"><h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI Investment Analysis <span class="ai-badge">Claude</span></h3><button class="btn-ai" id="runAiBtn" onclick="runAIAnalysis()">Generate Analysis ↗</button></div><div class="ai-content" id="aiContent" style="color:var(--text2);font-style:italic">Click "Generate Analysis" for a Claude-powered investment thesis on ${stock.name}.</div></div><div style="margin-top:8px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ For research purposes only — not investment advice.</div>`;
+  const chartOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#8b949e",font:{size:11}}},y:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#8b949e",font:{size:11},callback:v=>"$"+(v/1e9).toFixed(0)+"B"}}}};
+  const years=stock.years||[2020,2021,2022,2023,2024];
+  if(stock.revenueHistory?.length){companyCharts.revenue=new Chart(document.getElementById("revenueChart"),{type:"bar",data:{labels:years,datasets:[{label:"Revenue",data:stock.revenueHistory,backgroundColor:"rgba(29,158,117,0.7)",borderRadius:5,borderSkipped:false}]},options:{...chartOpts}})}
+  if(stock.earningsHistory?.length){companyCharts.earnings=new Chart(document.getElementById("earningsChart"),{type:"bar",data:{labels:years,datasets:[{label:"Net Income",data:stock.earningsHistory,backgroundColor:"rgba(88,166,255,0.7)",borderRadius:5,borderSkipped:false},{label:"FCF",data:stock.fcfHistory||[],backgroundColor:"rgba(63,185,80,0.55)",borderRadius:5,borderSkipped:false}]},options:{...chartOpts,plugins:{legend:{display:true,labels:{color:"#8b949e",font:{size:11},boxWidth:10,padding:12}}}}})}
+  window._currentStock=stock;
+}
+
+async function runAIAnalysis(){
+  const stock=window._currentStock;if(!stock)return;
+  const btn=document.getElementById("runAiBtn"),content=document.getElementById("aiContent");
+  btn.disabled=true;btn.textContent="Analysing…";
+  content.className="ai-content loading";content.textContent="Claude is analysing "+stock.name+"…";
+  content.className="ai-content";content.textContent=await fetchAIAnalysis(stock);
+  btn.disabled=false;btn.textContent="Regenerate ↗";
+}
+
+// ── Routing ──
+function switchView(v){
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
+  document.getElementById("view-"+v)?.classList.add("active");
+  document.querySelector(`[data-view="${v}"]`)?.classList.add("active");
+}
+document.querySelectorAll(".nav-item").forEach(item=>{
+  item.addEventListener("click",e=>{
+    e.preventDefault();const v=item.dataset.view;switchView(v);
+    if(v==="dashboard")renderDashboard();
+    if(v==="intrinsic")populateIntrinsicSelect();
+  });
+});
+document.getElementById("searchBtn").addEventListener("click",()=>{const q=document.getElementById("searchInput").value.trim().toUpperCase();if(!q)return;document.getElementById("companyTickerInput").value=q;switchView("company");loadCompanyDetail(q)});
+document.getElementById("searchInput").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("searchBtn").click()});
+document.getElementById("intrinsicLoadBtn").addEventListener("click",()=>{const t=document.getElementById("intrinsicSelect").value;if(t)renderIntrinsicTable(t)});
+document.getElementById("dcfLoadBtn").addEventListener("click",loadDCFStock);
+document.getElementById("dcfTicker").addEventListener("keydown",e=>{if(e.key==="Enter")loadDCFStock()});
+document.getElementById("dcfEps").addEventListener("input",calcDCF);
+document.getElementById("companyLoadBtn").addEventListener("click",()=>loadCompanyDetail(document.getElementById("companyTickerInput").value));
+document.getElementById("companyTickerInput").addEventListener("keydown",e=>{if(e.key==="Enter")loadCompanyDetail(document.getElementById("companyTickerInput").value)});
+document.getElementById("addTickerBtn").addEventListener("click",()=>{document.getElementById("addModal").style.display="flex";document.getElementById("newTickerInput").focus()});
+document.getElementById("modalCancel").addEventListener("click",()=>{document.getElementById("addModal").style.display="none";document.getElementById("newTickerInput").value=""});
+document.getElementById("modalAdd").addEventListener("click",()=>{const t=document.getElementById("newTickerInput").value.trim().toUpperCase();if(t)addToWatchlist(t);document.getElementById("addModal").style.display="none";document.getElementById("newTickerInput").value=""});
+document.getElementById("newTickerInput").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("modalAdd").click();if(e.key==="Escape")document.getElementById("modalCancel").click()});
+document.getElementById("addModal").addEventListener("click",e=>{if(e.target===document.getElementById("addModal"))document.getElementById("modalCancel").click()});
+</script>
+</body>
+</html>
