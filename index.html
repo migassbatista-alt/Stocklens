@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,12 +34,17 @@ nav{padding:0 10px}
 .watchlist-item .change-pos{color:var(--green);font-size:11px}.watchlist-item .change-neg{color:var(--red);font-size:11px}
 .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
 .topbar{height:var(--topbar-h);background:var(--bg2);border-bottom:var(--card-border);display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:5}
-.search-wrap{display:flex;align-items:center;gap:10px;background:var(--bg);border:var(--card-border);border-radius:8px;padding:0 12px;flex:1;max-width:500px}
+.search-wrap{display:flex;align-items:center;gap:10px;background:var(--bg);border:var(--card-border);border-radius:8px;padding:0 12px;flex:1;max-width:460px}
 .search-wrap input{background:none;border:none;color:var(--text);font-size:14px;flex:1;outline:none;padding:10px 0}
 .search-wrap input::placeholder{color:var(--text2)}
 .search-wrap button{background:var(--accent);border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap}
 .search-wrap button:hover{background:var(--accent2)}
-.data-source-info{font-size:11px;color:var(--text2);white-space:nowrap;background:rgba(29,158,117,0.1);padding:5px 10px;border-radius:6px;border:1px solid rgba(29,158,117,0.2)}
+/* Source toggle */
+.source-toggle{display:flex;align-items:center;gap:0;background:var(--bg);border:var(--card-border);border-radius:8px;padding:3px;white-space:nowrap}
+.source-toggle button{background:none;border:none;color:var(--text2);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s}
+.source-toggle button.active{background:var(--accent);color:white}
+.source-toggle button:hover:not(.active){color:var(--text)}
+.source-label{font-size:11px;color:var(--text2);margin-right:6px}
 .view{display:none;padding:28px 24px}.view.active{display:block}
 .view-header{margin-bottom:24px}.view-header h1{font-size:22px;font-weight:600;margin-bottom:4px}.view-header p{color:var(--text2);font-size:14px}
 .card{background:var(--bg2);border:var(--card-border);border-radius:var(--radius);padding:20px}
@@ -106,6 +112,7 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
 .ai-content{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap}.ai-content.loading{color:var(--text2);font-style:italic}
 .btn-ai{background:rgba(29,158,117,0.15);border:1px solid rgba(29,158,117,0.3);color:var(--accent);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500}
 .btn-ai:hover{background:rgba(29,158,117,0.25)}
+.source-tag{font-size:11px;color:var(--text2);background:var(--bg3);padding:3px 8px;border-radius:4px;margin-left:8px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100}
 .modal-box{background:var(--bg2);border:var(--card-border);border-radius:14px;padding:28px;width:320px}
 .modal-box h3{font-size:17px;font-weight:600;margin-bottom:16px}
@@ -159,10 +166,14 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
     <header class="topbar">
       <div class="search-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" placeholder="Search ticker (e.g. AAPL, NVDA, MU)..."/>
+        <input type="text" id="searchInput" placeholder="Search ticker (e.g. AAPL, IBM, MU)..."/>
         <button id="searchBtn">Analyse</button>
       </div>
-      <div class="data-source-info">📡 Live data via FMP</div>
+      <div class="source-toggle">
+        <span class="source-label">Source:</span>
+        <button id="srcFMP" class="active" onclick="setSource('fmp')">FMP</button>
+        <button id="srcYahoo" onclick="setSource('yahoo')">Yahoo</button>
+      </div>
     </header>
 
     <div id="view-dashboard" class="view active">
@@ -217,6 +228,17 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
 
 <script>
 let SESSION_PASSWORD="";
+let DATA_SOURCE=localStorage.getItem("stocklens_source")||"fmp";
+
+function setSource(src){
+  DATA_SOURCE=src;
+  localStorage.setItem("stocklens_source",src);
+  document.getElementById("srcFMP").classList.toggle("active",src==="fmp");
+  document.getElementById("srcYahoo").classList.toggle("active",src==="yahoo");
+  // Clear cache and reload current view's data
+  for(const k in stockCache)delete stockCache[k];
+  renderDashboard();
+}
 
 async function tryUnlock(){
   const pw=document.getElementById("gateInput").value.trim();
@@ -235,6 +257,9 @@ function unlock(pw){
   sessionStorage.setItem("slpw",pw);
   document.getElementById("gate").style.display="none";
   document.getElementById("app").classList.add("unlocked");
+  // sync toggle UI to saved source
+  document.getElementById("srcFMP").classList.toggle("active",DATA_SOURCE==="fmp");
+  document.getElementById("srcYahoo").classList.toggle("active",DATA_SOURCE==="yahoo");
   renderDashboard();populateIntrinsicSelect();
 }
 document.getElementById("gateBtn").addEventListener("click",tryUnlock);
@@ -251,20 +276,20 @@ function formatPct(n){if(n===null||n===undefined||isNaN(n))return"—";return(n>
 function changeClass(n){return n>=0?"stock-card-change-pos":"stock-card-change-neg"}
 function changeSymbol(n){return n>=0?"▲":"▼"}
 
-// ── Fetch stock via Vercel proxy (FMP key stays server-side) ──
 const stockCache={};
 async function fetchStock(ticker){
   ticker=ticker.toUpperCase().trim();
-  if(stockCache[ticker])return stockCache[ticker];
+  const cacheKey=DATA_SOURCE+":"+ticker;
+  if(stockCache[cacheKey])return stockCache[cacheKey];
   try{
     const res=await fetch("/api/analyse",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-site-password":SESSION_PASSWORD},
-      body:JSON.stringify({action:"fetchStock",ticker})
+      body:JSON.stringify({action:"fetchStock",ticker,source:DATA_SOURCE})
     });
     const data=await res.json();
     if(data.error||!data.stock){console.warn("fetchStock error:",data.error);return null}
-    stockCache[ticker]=data.stock;
+    stockCache[cacheKey]=data.stock;
     return data.stock;
   }catch(e){console.error("fetchStock failed:",e);return null}
 }
@@ -286,7 +311,7 @@ async function fetchAIAnalysis(s){
 async function renderDashboard(){
   const container=document.getElementById("dashboardCards");
   const indexBar=document.getElementById("indexBar");
-  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Loading live market data…</span></div>`;
+  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Loading live data via ${DATA_SOURCE.toUpperCase()}…</span></div>`;
   const stocks=await fetchMultiple(watchlist);
   indexBar.innerHTML=DEMO_INDICES.map(idx=>`<div class="index-chip"><div><div class="idx-name">${idx.name}</div><div class="idx-val">${idx.value.toLocaleString("en-US",{minimumFractionDigits:2})}</div></div><div class="${idx.change>=0?"idx-chg-pos":"idx-chg-neg"}">${changeSymbol(idx.change)} ${Math.abs(idx.change).toFixed(2)}%</div></div>`).join("");
   container.innerHTML="";
@@ -299,7 +324,7 @@ async function renderDashboard(){
     card.addEventListener("click",()=>{document.getElementById("companyTickerInput").value=stock.ticker;switchView("company");loadCompanyDetail(stock.ticker)});
     container.appendChild(card);
   });
-  if(!anyLoaded){container.innerHTML=`<div class="error-badge">Could not load market data. Check that your FMP_API_KEY is set correctly in Vercel.</div>`;}
+  if(!anyLoaded){container.innerHTML=`<div class="error-badge">Could not load data via ${DATA_SOURCE.toUpperCase()}. Try switching source (top right) or check your keys in Vercel.</div>`;}
   renderWatchlistSidebar(stocks);
 }
 function renderWatchlistSidebar(stocks){
@@ -373,13 +398,13 @@ async function loadCompanyDetail(ticker){
   ticker=(ticker||document.getElementById("companyTickerInput").value).trim().toUpperCase();
   if(!ticker)return;
   Object.values(companyCharts).forEach(c=>c?.destroy());companyCharts={};
-  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Loading ${ticker}…</span></div>`;
+  container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Loading ${ticker} via ${DATA_SOURCE.toUpperCase()}…</span></div>`;
   const stock=await fetchStock(ticker);
-  if(!stock){container.innerHTML=`<div class="error-badge">Could not load "${ticker}". Check the ticker symbol.</div>`;return}
+  if(!stock){container.innerHTML=`<div class="error-badge">Could not load "${ticker}" via ${DATA_SOURCE.toUpperCase()}. Try switching source (top right).</div>`;return}
   const pch=`<span class="${stock.changePct>=0?"stock-card-change-pos":"stock-card-change-neg"}">${changeSymbol(stock.changePct)} $${Math.abs(stock.change??0).toFixed(2)} (${Math.abs(stock.changePct??0).toFixed(2)}%)</span>`;
   function sc(l,v,s){return`<div class="stat-card"><div class="s-label">${l}</div><div class="s-val">${v}</div>${s?`<div class="s-sub">${s}</div>`:""}</div>`}
   const hasCharts=stock.revenueHistory&&stock.revenueHistory.length>0;
-  container.innerHTML=`<div class="card"><div class="company-header"><div class="company-logo">${stock.ticker.charAt(0)}</div><div class="company-title"><h2>${stock.name}</h2><div class="co-sub">${stock.ticker} · ${stock.exchange??""} · ${stock.sector??""}</div><div style="display:flex;align-items:center;gap:14px;margin-top:8px"><span style="font-size:28px;font-weight:700">$${stock.price?.toFixed(2)??"—"}</span>${pch}</div></div></div><div class="company-stats">${sc("Market Cap",formatNumber(stock.marketCap),"")}${sc("P/E Ratio",stock.pe?.toFixed?.(1)??stock.pe??"—","trailing")}${sc("EPS (TTM)",stock.eps?"$"+(stock.eps.toFixed?.(2)??stock.eps):"—","")}${sc("Revenue",formatNumber(stock.revenue),"FY")}${sc("Net Income",formatNumber(stock.netIncome),"FY")}${sc("Free Cash Flow",formatNumber(stock.freeCashFlow),"FY")}${sc("Gross Margin",(stock.grossMargin?.toFixed?.(1)??"—")+"%","")}${sc("Net Margin",(stock.netMargin?.toFixed?.(1)??"—")+"%","")}${sc("52W High","$"+(stock.week52High?.toFixed?.(2)??"—"),"")}${sc("52W Low","$"+(stock.week52Low?.toFixed?.(2)??"—"),"")}</div></div>${hasCharts?`<div class="charts-grid" style="margin-top:16px"><div class="chart-card"><h4>Revenue History</h4><div style="position:relative;height:220px"><canvas id="revenueChart"></canvas></div></div><div class="chart-card"><h4>Net Income & Free Cash Flow</h4><div style="position:relative;height:220px"><canvas id="earningsChart"></canvas></div></div></div>`:""}<div class="ai-analysis-card"><div class="ai-header"><h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI Investment Analysis <span class="ai-badge">Claude</span></h3><button class="btn-ai" id="runAiBtn" onclick="runAIAnalysis()">Generate Analysis ↗</button></div><div class="ai-content" id="aiContent" style="color:var(--text2);font-style:italic">Click "Generate Analysis" for a Claude-powered investment thesis on ${stock.name}.</div></div><div style="margin-top:8px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ For research purposes only — not investment advice.</div>`;
+  container.innerHTML=`<div class="card"><div class="company-header"><div class="company-logo">${stock.ticker.charAt(0)}</div><div class="company-title"><h2>${stock.name}<span class="source-tag">via ${DATA_SOURCE.toUpperCase()}</span></h2><div class="co-sub">${stock.ticker} · ${stock.exchange??""} · ${stock.sector??""}</div><div style="display:flex;align-items:center;gap:14px;margin-top:8px"><span style="font-size:28px;font-weight:700">$${stock.price?.toFixed(2)??"—"}</span>${pch}</div></div></div>${stock.description?`<div class="co-description">${stock.description.substring(0,500)}${stock.description.length>500?"…":""}</div>`:""}<div class="company-stats">${sc("Market Cap",formatNumber(stock.marketCap),"")}${sc("P/E Ratio",stock.pe?.toFixed?.(1)??stock.pe??"—","trailing")}${sc("EPS (TTM)",stock.eps?"$"+(stock.eps.toFixed?.(2)??stock.eps):"—","")}${sc("Revenue",formatNumber(stock.revenue),"FY")}${sc("Net Income",formatNumber(stock.netIncome),"FY")}${sc("Free Cash Flow",formatNumber(stock.freeCashFlow),"FY")}${sc("Gross Margin",(stock.grossMargin?.toFixed?.(1)??"—")+"%","")}${sc("Net Margin",(stock.netMargin?.toFixed?.(1)??"—")+"%","")}${sc("ROE",(stock.roe?.toFixed?.(1)??"—")+"%","")}${sc("Beta",stock.beta?.toFixed?.(2)??stock.beta??"—","vs market")}${sc("52W High","$"+(stock.week52High?.toFixed?.(2)??"—"),"")}${sc("52W Low","$"+(stock.week52Low?.toFixed?.(2)??"—"),"")}</div></div>${hasCharts?`<div class="charts-grid" style="margin-top:16px"><div class="chart-card"><h4>Revenue History</h4><div style="position:relative;height:220px"><canvas id="revenueChart"></canvas></div></div><div class="chart-card"><h4>Net Income & Free Cash Flow</h4><div style="position:relative;height:220px"><canvas id="earningsChart"></canvas></div></div></div>`:""}<div class="ai-analysis-card"><div class="ai-header"><h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI Investment Analysis <span class="ai-badge">Claude</span></h3><button class="btn-ai" id="runAiBtn" onclick="runAIAnalysis()">Generate Analysis ↗</button></div><div class="ai-content" id="aiContent" style="color:var(--text2);font-style:italic">Click "Generate Analysis" for a Claude-powered investment thesis on ${stock.name}.</div></div><div style="margin-top:8px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ For research purposes only — not investment advice.</div>`;
   if(hasCharts){
     const chartOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#8b949e",font:{size:11}}},y:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#8b949e",font:{size:11},callback:v=>"$"+(v/1e9).toFixed(0)+"B"}}}};
     const years=stock.years||[];
