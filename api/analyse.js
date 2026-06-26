@@ -1,4 +1,3 @@
-
 // Vercel serverless function: handles BOTH FMP data fetching and Claude AI analysis
 // Keeps both API keys server-side (never exposed to browser)
 
@@ -10,7 +9,6 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  // Password check
   const sitePassword = process.env.SITE_PASSWORD;
   const provided = req.headers["x-site-password"];
   if (sitePassword && provided !== sitePassword) {
@@ -33,25 +31,36 @@ export default async function handler(req, res) {
     const base = "https://financialmodelingprep.com/stable";
 
     try {
-      // Fetch quote (free), income statement (free), cash flow (free)
-      const [quoteRes, incomeRes, cashRes] = await Promise.all([
-        fetch(`${base}/quote?symbol=${ticker}&apikey=${FMP_KEY}`).then(r => r.json()).catch(() => null),
-        fetch(`${base}/income-statement?symbol=${ticker}&limit=5&apikey=${FMP_KEY}`).then(r => r.json()).catch(() => null),
-        fetch(`${base}/cash-flow-statement?symbol=${ticker}&limit=5&apikey=${FMP_KEY}`).then(r => r.json()).catch(() => null),
-      ]);
+      // QUOTE is the critical one. Fetch it first, alone, so statement failures can't break it.
+      const quoteResp = await fetch(`${base}/quote?symbol=${ticker}&apikey=${FMP_KEY}`);
+      const quoteJson = await quoteResp.json();
+      const q = Array.isArray(quoteJson) ? quoteJson[0] : quoteJson;
 
-      const q = Array.isArray(quoteRes) ? quoteRes[0] : quoteRes;
-      if (!q || q["Error Message"] || q.error) {
-        return res.status(404).json({ error: "Ticker not found or endpoint unavailable" });
+      if (!q || q["Error Message"] || q.error || q.price === undefined) {
+        return res.status(404).json({
+          error: "Quote unavailable for " + ticker,
+          debug: q ? JSON.stringify(q).substring(0, 200) : "empty response"
+        });
       }
 
-      const income = Array.isArray(incomeRes) ? incomeRes : [];
-      const cash = Array.isArray(cashRes) ? cashRes : [];
+      // Statements are OPTIONAL — wrap each so a failure just yields empty arrays.
+      let income = [], cash = [];
+      try {
+        const incResp = await fetch(`${base}/income-statement?symbol=${ticker}&limit=5&apikey=${FMP_KEY}`);
+        const incJson = await incResp.json();
+        if (Array.isArray(incJson)) income = incJson;
+      } catch (e) { /* ignore */ }
+
+      try {
+        const cashResp = await fetch(`${base}/cash-flow-statement?symbol=${ticker}&limit=5&apikey=${FMP_KEY}`);
+        const cashJson = await cashResp.json();
+        if (Array.isArray(cashJson)) cash = cashJson;
+      } catch (e) { /* ignore */ }
 
       const i0 = income[0] || {};
-      const revenue = i0.revenue;
-      const grossProfit = i0.grossProfit;
-      const netIncome = i0.netIncome;
+      const revenue = i0.revenue ?? null;
+      const grossProfit = i0.grossProfit ?? null;
+      const netIncome = i0.netIncome ?? null;
       const grossMargin = revenue && grossProfit ? (grossProfit / revenue) * 100 : null;
       const netMargin = revenue && netIncome ? (netIncome / revenue) * 100 : null;
 
@@ -66,21 +75,21 @@ export default async function handler(req, res) {
         exchange: q.exchange || "",
         sector: q.sector || "",
         price: q.price,
-        change: q.change,
-        changePct: q.changePercentage,
-        marketCap: q.marketCap,
-        pe: q.pe,
-        eps: q.eps,
+        change: q.change ?? null,
+        changePct: q.changePercentage ?? q.changesPercentage ?? null,
+        marketCap: q.marketCap ?? null,
+        pe: q.pe ?? null,
+        eps: q.eps ?? null,
         revenue,
         netIncome,
-        freeCashFlow: cash[0]?.freeCashFlow,
+        freeCashFlow: cash[0]?.freeCashFlow ?? null,
         grossMargin,
         netMargin,
         roe: null,
         beta: null,
         dividendYield: null,
-        week52High: q.yearHigh,
-        week52Low: q.yearLow,
+        week52High: q.yearHigh ?? null,
+        week52Low: q.yearLow ?? null,
         description: "",
         revenueHistory, earningsHistory, fcfHistory, years,
       };
@@ -107,7 +116,7 @@ Company: ${s.name} (${s.ticker}) | Sector: ${s.sector}
 Price: $${s.price} | Market Cap: ${s.marketCap} | P/E: ${s.pe} | EPS: $${s.eps}
 Revenue: ${s.revenue} | Net Income: ${s.netIncome} | FCF: ${s.freeCashFlow}
 Gross Margin: ${s.grossMargin}% | Net Margin: ${s.netMargin}%
-52W: $${s.week52Low}–$${s.week52High}
+52W: $${s.week52Low}-$${s.week52High}
 
 Be direct and opinionated. Use clear headings. Under 500 words.`;
 
