@@ -91,7 +91,6 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
 .company-search-bar button{background:var(--accent);border:none;color:white;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500}
 .company-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:var(--card-border)}
 .company-logo{width:52px;height:52px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--accent);border:var(--card-border);overflow:hidden}
-.company-logo img{width:100%;height:100%;object-fit:contain}
 .company-title h2{font-size:22px;font-weight:700;margin-bottom:2px}.company-title .co-sub{font-size:13px;color:var(--text2)}
 .company-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px}
 .stat-card{background:var(--bg2);border:var(--card-border);border-radius:8px;padding:14px}
@@ -163,7 +162,7 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
         <input type="text" id="searchInput" placeholder="Search ticker (e.g. AAPL, NVDA, MU)..."/>
         <button id="searchBtn">Analyse</button>
       </div>
-      <div class="data-source-info">📡 Live data via Yahoo Finance</div>
+      <div class="data-source-info">📡 Live data via FMP</div>
     </header>
 
     <div id="view-dashboard" class="view active">
@@ -174,11 +173,7 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
 
     <div id="view-intrinsic" class="view">
       <div class="view-header"><h1>Intrinsic Value Levels</h1><p>Buy zones based on margin of safety tiers</p></div>
-      <div class="intrinsic-controls">
-        <label>Watchlist stocks</label>
-        <select id="intrinsicSelect"></select>
-        <button id="intrinsicLoadBtn">Load</button>
-      </div>
+      <div class="intrinsic-controls"><label>Watchlist stocks</label><select id="intrinsicSelect"></select><button id="intrinsicLoadBtn">Load</button></div>
       <div id="intrinsicTable"></div>
     </div>
 
@@ -206,10 +201,7 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
 
     <div id="view-company" class="view">
       <div class="view-header"><h1>Company Detail</h1><p>Fundamentals, financials & AI analysis</p></div>
-      <div class="company-search-bar">
-        <input type="text" id="companyTickerInput" placeholder="Enter ticker (e.g. MSFT)"/>
-        <button id="companyLoadBtn">Load Company</button>
-      </div>
+      <div class="company-search-bar"><input type="text" id="companyTickerInput" placeholder="Enter ticker (e.g. MSFT)"/><button id="companyLoadBtn">Load Company</button></div>
       <div id="companyDetail"></div>
     </div>
   </main>
@@ -219,15 +211,11 @@ table.iv-table{width:100%;border-collapse:collapse;font-size:13px}
   <div class="modal-box">
     <h3>Add to Watchlist</h3>
     <input type="text" id="newTickerInput" placeholder="Ticker (e.g. NVDA)"/>
-    <div class="modal-actions">
-      <button id="modalCancel" class="btn-secondary">Cancel</button>
-      <button id="modalAdd" class="btn-primary">Add</button>
-    </div>
+    <div class="modal-actions"><button id="modalCancel" class="btn-secondary">Cancel</button><button id="modalAdd" class="btn-primary">Add</button></div>
   </div>
 </div>
 
 <script>
-// ── Password gate ──
 let SESSION_PASSWORD="";
 
 async function tryUnlock(){
@@ -236,41 +224,24 @@ async function tryUnlock(){
   const btn=document.getElementById("gateBtn");
   btn.textContent="Checking…";btn.disabled=true;
   try{
-    const res=await fetch("/api/analyse",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-site-password":pw},
-      body:JSON.stringify({})
-    });
-    if(res.status===401){
-      document.getElementById("gateError").style.display="block";
-    } else {
-      // 400 = correct password but missing stockData = we're in
-      // 200 or anything else = also let through
-      unlock(pw);
-    }
-  }catch(e){
-    // No server (local) = just let in
-    unlock(pw);
-  }
+    const res=await fetch("/api/analyse",{method:"POST",headers:{"Content-Type":"application/json","x-site-password":pw},body:JSON.stringify({})});
+    if(res.status===401){document.getElementById("gateError").style.display="block";}
+    else{unlock(pw);}
+  }catch(e){unlock(pw);}
   btn.textContent="Enter";btn.disabled=false;
 }
-
 function unlock(pw){
   SESSION_PASSWORD=pw;
   sessionStorage.setItem("slpw",pw);
   document.getElementById("gate").style.display="none";
   document.getElementById("app").classList.add("unlocked");
-  renderDashboard();
-  populateIntrinsicSelect();
+  renderDashboard();populateIntrinsicSelect();
 }
-
 document.getElementById("gateBtn").addEventListener("click",tryUnlock);
 document.getElementById("gateInput").addEventListener("keydown",e=>{if(e.key==="Enter")tryUnlock()});
 const savedPw=sessionStorage.getItem("slpw");
 if(savedPw){unlock(savedPw)}
 
-// ── Demo data (fallback) ──
-const DEMO_DATA={AAPL:{name:"Apple Inc.",ticker:"AAPL",exchange:"NASDAQ",sector:"Technology",price:213.49,change:2.31,changePct:1.09,marketCap:3280000000000,pe:33.2,eps:6.43,revenue:391035000000,netIncome:97000000000,freeCashFlow:111440000000,roe:147.25,grossMargin:45.96,netMargin:24.81,beta:1.24,dividendYield:0.51,week52High:237.23,week52Low:164.08,description:"Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",revenueHistory:[274515,365817,394328,383285,391035],earningsHistory:[57411,94680,99803,96995,97000],fcfHistory:[73365,92953,111443,99584,111440],years:[2020,2021,2022,2023,2024]},MSFT:{name:"Microsoft Corporation",ticker:"MSFT",exchange:"NASDAQ",sector:"Technology",price:468.33,change:-3.21,changePct:-0.68,marketCap:3480000000000,pe:36.1,eps:12.97,revenue:245122000000,netIncome:88136000000,freeCashFlow:73673000000,roe:38.82,grossMargin:69.76,netMargin:35.96,beta:0.89,dividendYield:0.72,week52High:497.34,week52Low:376.15,description:"Microsoft Corporation develops and supports software, services, devices, and solutions worldwide.",revenueHistory:[143015,168088,198270,211915,245122],earningsHistory:[44281,61271,72738,72361,88136],fcfHistory:[45234,56118,65149,59475,73673],years:[2020,2021,2022,2023,2024]},NVDA:{name:"NVIDIA Corporation",ticker:"NVDA",exchange:"NASDAQ",sector:"Technology",price:131.38,change:4.52,changePct:3.56,marketCap:3200000000000,pe:50.4,eps:2.61,revenue:130497000000,netIncome:72880000000,freeCashFlow:67854000000,roe:123.77,grossMargin:74.99,netMargin:55.85,beta:1.67,dividendYield:0.03,week52High:149.43,week52Low:75.61,description:"NVIDIA Corporation provides graphics, computing, and networking solutions including data center AI chips.",revenueHistory:[16675,26914,26974,60922,130497],earningsHistory:[4332,9752,4368,29760,72880],fcfHistory:[4694,8131,3808,27021,67854],years:[2020,2021,2022,2023,2024]},GOOGL:{name:"Alphabet Inc.",ticker:"GOOGL",exchange:"NASDAQ",sector:"Communication Services",price:189.30,change:1.14,changePct:0.61,marketCap:2300000000000,pe:23.8,eps:7.95,revenue:350018000000,netIncome:94000000000,freeCashFlow:72764000000,roe:30.12,grossMargin:57.08,netMargin:26.86,beta:1.07,dividendYield:0.49,week52High:207.05,week52Low:154.84,description:"Alphabet operates Google Search, YouTube, Maps, Gmail, Android, Google Cloud, and other businesses.",revenueHistory:[182527,257637,282836,307394,350018],earningsHistory:[40269,76033,59972,73795,94000],fcfHistory:[42843,67012,60010,69495,72764],years:[2020,2021,2022,2023,2024]},AMZN:{name:"Amazon.com Inc.",ticker:"AMZN",exchange:"NASDAQ",sector:"Consumer Discretionary",price:229.15,change:-1.89,changePct:-0.82,marketCap:2420000000000,pe:43.1,eps:5.32,revenue:637959000000,netIncome:59248000000,freeCashFlow:38531000000,roe:22.87,grossMargin:48.88,netMargin:9.29,beta:1.15,dividendYield:0,week52High:242.52,week52Low:157.70,description:"Amazon operates e-commerce, cloud computing (AWS), advertising, and logistics services worldwide.",revenueHistory:[386064,469822,513983,574785,637959],earningsHistory:[-2722,33364,-2722,30425,59248],fcfHistory:[26378,2584,-11569,32026,38531],years:[2020,2021,2022,2023,2024]}};
 const DEMO_INDICES=[{name:"S&P 500",value:5847.24,change:0.62},{name:"NASDAQ",value:19024.73,change:1.12},{name:"DOW",value:42888.20,change:0.31},{name:"VIX",value:14.32,change:-3.21}];
 const DEFAULT_WATCHLIST=["AAPL","MSFT","NVDA","GOOGL","AMZN"];
 let watchlist=JSON.parse(localStorage.getItem("stocklens_watchlist")||JSON.stringify(DEFAULT_WATCHLIST));
@@ -280,59 +251,23 @@ function formatPct(n){if(n===null||n===undefined||isNaN(n))return"—";return(n>
 function changeClass(n){return n>=0?"stock-card-change-pos":"stock-card-change-neg"}
 function changeSymbol(n){return n>=0?"▲":"▼"}
 
-// ── Yahoo Finance via proxy ──
-// Uses a CORS proxy since Yahoo Finance blocks direct browser calls
-const YF_PROXY="https://query1.finance.yahoo.com/v8/finance/chart/";
-const YF_QUOTE="https://query1.finance.yahoo.com/v7/finance/quote?symbols=";
-const CORS="https://corsproxy.io/?";
-
+// ── Fetch stock via Vercel proxy (FMP key stays server-side) ──
+const stockCache={};
 async function fetchStock(ticker){
   ticker=ticker.toUpperCase().trim();
+  if(stockCache[ticker])return stockCache[ticker];
   try{
-    // Quote data
-    const quoteUrl=`${CORS}${encodeURIComponent(YF_QUOTE+ticker)}`;
-    const quoteRes=await fetch(quoteUrl).then(r=>r.json());
-    const q=quoteRes?.quoteResponse?.result?.[0];
-    if(!q)return DEMO_DATA[ticker]||null;
-
-    // Chart/financial data
-    const chartUrl=`${CORS}${encodeURIComponent(YF_PROXY+ticker+"?interval=1d&range=5d")}`;
-    const chartRes=await fetch(chartUrl).then(r=>r.json());
-    const meta=chartRes?.chart?.result?.[0]?.meta||{};
-
-    return{
-      name:q.longName||q.shortName||ticker,
-      ticker:q.symbol||ticker,
-      exchange:q.fullExchangeName||q.exchange||"",
-      sector:q.sector||"",
-      price:q.regularMarketPrice||meta.regularMarketPrice||0,
-      change:q.regularMarketChange||0,
-      changePct:q.regularMarketChangePercent||0,
-      marketCap:q.marketCap||0,
-      pe:q.trailingPE||q.forwardPE||null,
-      eps:q.epsTrailingTwelveMonths||null,
-      revenue:q.totalRevenue||null,
-      netIncome:null,
-      freeCashFlow:q.freeCashflow||null,
-      roe:null,
-      grossMargin:null,
-      netMargin:q.profitMargins?q.profitMargins*100:null,
-      beta:q.beta||null,
-      dividendYield:q.dividendYield?q.dividendYield*100:0,
-      week52High:q.fiftyTwoWeekHigh||null,
-      week52Low:q.fiftyTwoWeekLow||null,
-      description:q.longBusinessSummary||"",
-      revenueHistory:null,
-      earningsHistory:null,
-      fcfHistory:null,
-      years:null
-    };
-  }catch(e){
-    console.warn("Yahoo fetch failed for",ticker,"- using demo data");
-    return DEMO_DATA[ticker]||null;
-  }
+    const res=await fetch("/api/analyse",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-site-password":SESSION_PASSWORD},
+      body:JSON.stringify({action:"fetchStock",ticker})
+    });
+    const data=await res.json();
+    if(data.error||!data.stock){console.warn("fetchStock error:",data.error);return null}
+    stockCache[ticker]=data.stock;
+    return data.stock;
+  }catch(e){console.error("fetchStock failed:",e);return null}
 }
-
 async function fetchMultiple(tickers){return Promise.all(tickers.map(t=>fetchStock(t)))}
 
 async function fetchAIAnalysis(s){
@@ -340,7 +275,7 @@ async function fetchAIAnalysis(s){
     const res=await fetch("/api/analyse",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-site-password":SESSION_PASSWORD},
-      body:JSON.stringify({stockData:{name:s.name,ticker:s.ticker,sector:s.sector||"N/A",price:s.price,marketCap:formatNumber(s.marketCap),pe:s.pe?.toFixed(1)||"N/A",eps:s.eps?.toFixed(2)||"N/A",revenue:formatNumber(s.revenue),netIncome:formatNumber(s.netIncome),freeCashFlow:formatNumber(s.freeCashFlow),grossMargin:s.grossMargin?.toFixed(1)||"N/A",netMargin:s.netMargin?.toFixed(1)||"N/A",roe:s.roe?.toFixed(1)||"N/A",beta:s.beta?.toFixed(2)||"N/A",week52High:s.week52High,week52Low:s.week52Low,description:s.description?.substring(0,400)||""}})
+      body:JSON.stringify({stockData:{name:s.name,ticker:s.ticker,sector:s.sector||"N/A",price:s.price,marketCap:formatNumber(s.marketCap),pe:s.pe?.toFixed?.(1)||s.pe||"N/A",eps:s.eps?.toFixed?.(2)||s.eps||"N/A",revenue:formatNumber(s.revenue),netIncome:formatNumber(s.netIncome),freeCashFlow:formatNumber(s.freeCashFlow),grossMargin:s.grossMargin?.toFixed?.(1)||"N/A",netMargin:s.netMargin?.toFixed?.(1)||"N/A",week52High:s.week52High,week52Low:s.week52Low}})
     });
     const data=await res.json();
     if(data.error)return"Error: "+data.error;
@@ -348,7 +283,6 @@ async function fetchAIAnalysis(s){
   }catch(e){return"AI analysis unavailable."}
 }
 
-// ── Dashboard ──
 async function renderDashboard(){
   const container=document.getElementById("dashboardCards");
   const indexBar=document.getElementById("indexBar");
@@ -356,33 +290,30 @@ async function renderDashboard(){
   const stocks=await fetchMultiple(watchlist);
   indexBar.innerHTML=DEMO_INDICES.map(idx=>`<div class="index-chip"><div><div class="idx-name">${idx.name}</div><div class="idx-val">${idx.value.toLocaleString("en-US",{minimumFractionDigits:2})}</div></div><div class="${idx.change>=0?"idx-chg-pos":"idx-chg-neg"}">${changeSymbol(idx.change)} ${Math.abs(idx.change).toFixed(2)}%</div></div>`).join("");
   container.innerHTML="";
+  let anyLoaded=false;
   stocks.forEach(stock=>{
     if(!stock)return;
+    anyLoaded=true;
     const card=document.createElement("div");card.className="stock-card";
-    card.innerHTML=`<div class="stock-card-header"><div><div class="stock-card-ticker">${stock.ticker}</div><div class="stock-card-exchange">${stock.exchange||""} · ${stock.sector||""}</div></div><span class="stock-badge">${(stock.sector||"EQ").substring(0,4)}</span></div><div class="stock-card-price">$${stock.price?.toFixed(2)??"—"}</div><div class="${changeClass(stock.changePct)}">${changeSymbol(stock.changePct)} ${Math.abs(stock.changePct??0).toFixed(2)}% today</div><div class="stock-card-meta"><div class="meta-item"><div class="label">Market Cap</div><div class="val">${formatNumber(stock.marketCap)}</div></div><div class="meta-item"><div class="label">P/E Ratio</div><div class="val">${stock.pe?.toFixed(1)??"—"}</div></div><div class="meta-item"><div class="label">EPS</div><div class="val">${stock.eps?"$"+stock.eps.toFixed(2):"—"}</div></div><div class="meta-item"><div class="label">Div. Yield</div><div class="val">${stock.dividendYield?.toFixed(2)??"0.00"}%</div></div></div>`;
+    card.innerHTML=`<div class="stock-card-header"><div><div class="stock-card-ticker">${stock.ticker}</div><div class="stock-card-exchange">${stock.exchange||""} · ${stock.sector||""}</div></div><span class="stock-badge">${(stock.sector||"EQ").substring(0,4)}</span></div><div class="stock-card-price">$${stock.price?.toFixed(2)??"—"}</div><div class="${changeClass(stock.changePct)}">${changeSymbol(stock.changePct)} ${Math.abs(stock.changePct??0).toFixed(2)}% today</div><div class="stock-card-meta"><div class="meta-item"><div class="label">Market Cap</div><div class="val">${formatNumber(stock.marketCap)}</div></div><div class="meta-item"><div class="label">P/E Ratio</div><div class="val">${stock.pe?.toFixed?.(1)??stock.pe??"—"}</div></div><div class="meta-item"><div class="label">EPS</div><div class="val">${stock.eps?"$"+(stock.eps.toFixed?.(2)??stock.eps):"—"}</div></div><div class="meta-item"><div class="label">52W High</div><div class="val">$${stock.week52High?.toFixed?.(2)??"—"}</div></div></div>`;
     card.addEventListener("click",()=>{document.getElementById("companyTickerInput").value=stock.ticker;switchView("company");loadCompanyDetail(stock.ticker)});
     container.appendChild(card);
   });
+  if(!anyLoaded){container.innerHTML=`<div class="error-badge">Could not load market data. Check that your FMP_API_KEY is set correctly in Vercel.</div>`;}
   renderWatchlistSidebar(stocks);
 }
-
 function renderWatchlistSidebar(stocks){
   const el=document.getElementById("watchlistItems");
   if(!stocks?.length){el.innerHTML="";return}
   el.innerHTML=stocks.map(s=>s?`<div class="watchlist-item" onclick="document.getElementById('companyTickerInput').value='${s.ticker}';switchView('company');loadCompanyDetail('${s.ticker}')"><div><div class="ticker">${s.ticker}</div><div class="price">$${s.price?.toFixed(2)??"—"}</div></div><div class="${s.changePct>=0?"change-pos":"change-neg"}">${formatPct(s.changePct)}</div></div>`:"").join("");
 }
-
 function addToWatchlist(ticker){
   ticker=ticker.toUpperCase().trim();
   if(!ticker||watchlist.includes(ticker))return;
   watchlist.push(ticker);saveWatchlist();renderDashboard();populateIntrinsicSelect();
 }
 
-// ── Intrinsic Value ──
-function populateIntrinsicSelect(){
-  document.getElementById("intrinsicSelect").innerHTML=watchlist.map(t=>`<option value="${t}">${t}</option>`).join("");
-}
-
+function populateIntrinsicSelect(){document.getElementById("intrinsicSelect").innerHTML=watchlist.map(t=>`<option value="${t}">${t}</option>`).join("")}
 async function renderIntrinsicTable(ticker){
   const container=document.getElementById("intrinsicTable");
   container.innerHTML=`<div class="loading-state"><div class="spinner"></div><span>Calculating…</span></div>`;
@@ -400,25 +331,18 @@ async function renderIntrinsicTable(ticker){
   container.innerHTML=`<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"><div><div style="font-size:20px;font-weight:700">${stock.name} (${stock.ticker})</div><div style="font-size:13px;color:var(--text2);margin-top:4px">DCF Intrinsic Value (10% WACC, 12% growth, 3% terminal)</div></div><div style="text-align:right"><div style="font-size:28px;font-weight:700;color:var(--accent)">$${iv.toFixed(2)}</div><div style="font-size:13px;margin-top:4px">${pdLabel}</div></div></div></div><div class="intrinsic-table-wrap card"><table class="iv-table"><thead><tr><th>Level</th><th>Target Price</th><th>Margin of Safety</th><th>Current Price</th><th>Status</th></tr></thead><tbody><tr class="current-price-row"><td>📍 Current Price</td><td>$${cp.toFixed(2)}</td><td>—</td><td>$${cp.toFixed(2)}</td><td>—</td></tr>${levels.map(lv=>{const t=iv*lv.pct;return`<tr><td>${lv.label}</td><td>$${t.toFixed(2)}</td><td>${lv.mos}</td><td>$${cp.toFixed(2)}</td><td>${pb(t)}</td></tr>`}).join("")}</tbody></table></div><div style="margin-top:14px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ Simplified DCF model. Research only — not investment advice.</div>`;
 }
 
-// ── Reverse DCF ──
 async function loadDCFStock(){
   const ticker=document.getElementById("dcfTicker").value.trim().toUpperCase();if(!ticker)return;
   const stock=await fetchStock(ticker);
   if(!stock){const el=document.getElementById("dcfCompanyInfo");el.style.display="block";el.innerHTML=`<div style="color:var(--red)">Ticker not found.</div>`;return}
-  document.getElementById("dcfEps").value=stock.eps?.toFixed(2)??"";
-  document.getElementById("dcfPrice").value=stock.price?.toFixed(2)??"";
-  document.getElementById("dcfEpsDisplay").textContent=stock.eps?`$${stock.eps.toFixed(2)}`:"—";
+  document.getElementById("dcfEps").value=stock.eps?.toFixed?.(2)??stock.eps??"";
+  document.getElementById("dcfPrice").value=stock.price?.toFixed?.(2)??stock.price??"";
+  document.getElementById("dcfEpsDisplay").textContent=stock.eps?`$${stock.eps.toFixed?.(2)??stock.eps}`:"—";
   const el=document.getElementById("dcfCompanyInfo");el.style.display="block";
-  el.innerHTML=`<div class="mini-name">${stock.name}</div><div class="mini-meta"><span>${stock.exchange}</span><span>${stock.sector||"N/A"}</span><span>P/E: ${stock.pe?.toFixed(1)??"—"}</span><span>${formatNumber(stock.marketCap)}</span></div>`;
+  el.innerHTML=`<div class="mini-name">${stock.name}</div><div class="mini-meta"><span>${stock.exchange}</span><span>${stock.sector||"N/A"}</span><span>P/E: ${stock.pe?.toFixed?.(1)??stock.pe??"—"}</span><span>${formatNumber(stock.marketCap)}</span></div>`;
   calcDCF();
 }
-
-function dcfValueAt(eps,g,wacc,terminal,years){
-  let pv=0,e=eps;
-  for(let i=1;i<=years;i++){e*=(1+g);pv+=e/Math.pow(1+wacc,i)}
-  pv+=(e*(1+terminal))/(wacc-terminal)/Math.pow(1+wacc,years);return pv;
-}
-
+function dcfValueAt(eps,g,wacc,terminal,years){let pv=0,e=eps;for(let i=1;i<=years;i++){e*=(1+g);pv+=e/Math.pow(1+wacc,i)}pv+=(e*(1+terminal))/(wacc-terminal)/Math.pow(1+wacc,years);return pv}
 function calcDCF(){
   const eps=parseFloat(document.getElementById("dcfEps").value);
   const price=parseFloat(document.getElementById("dcfPrice").value);
@@ -443,7 +367,6 @@ function calcDCF(){
   document.getElementById("dcfProjectionTable").innerHTML=`<table class="proj-table"><thead><tr><th style="text-align:left">Year</th><th>EPS</th><th>Growth</th><th>PV</th><th>Cum. PV</th></tr></thead><tbody>${rows}<tr style="border-top:1px solid var(--border);font-weight:600"><td>Terminal</td><td>—</td><td>${(terminal*100).toFixed(1)}%</td><td>$${pvTv.toFixed(2)}</td><td>—</td></tr></tbody></table>`;
 }
 
-// ── Company Detail ──
 let companyCharts={};
 async function loadCompanyDetail(ticker){
   const container=document.getElementById("companyDetail");
@@ -456,16 +379,15 @@ async function loadCompanyDetail(ticker){
   const pch=`<span class="${stock.changePct>=0?"stock-card-change-pos":"stock-card-change-neg"}">${changeSymbol(stock.changePct)} $${Math.abs(stock.change??0).toFixed(2)} (${Math.abs(stock.changePct??0).toFixed(2)}%)</span>`;
   function sc(l,v,s){return`<div class="stat-card"><div class="s-label">${l}</div><div class="s-val">${v}</div>${s?`<div class="s-sub">${s}</div>`:""}</div>`}
   const hasCharts=stock.revenueHistory&&stock.revenueHistory.length>0;
-  container.innerHTML=`<div class="card"><div class="company-header"><div class="company-logo">${stock.ticker.charAt(0)}</div><div class="company-title"><h2>${stock.name}</h2><div class="co-sub">${stock.ticker} · ${stock.exchange??""} · ${stock.sector??""}</div><div style="display:flex;align-items:center;gap:14px;margin-top:8px"><span style="font-size:28px;font-weight:700">$${stock.price?.toFixed(2)??"—"}</span>${pch}</div></div></div>${stock.description?`<div class="co-description">${stock.description.substring(0,500)}${stock.description.length>500?"…":""}</div>`:""}<div class="company-stats">${sc("Market Cap",formatNumber(stock.marketCap),"")}${sc("P/E Ratio",stock.pe?.toFixed(1)??"—","trailing")}${sc("EPS (TTM)",stock.eps?"$"+stock.eps.toFixed(2):"—","")}${sc("Revenue",formatNumber(stock.revenue),"TTM")}${sc("Free Cash Flow",formatNumber(stock.freeCashFlow),"TTM")}${sc("Net Margin",(stock.netMargin?.toFixed(1)??"—")+"%","")}${sc("Beta",stock.beta?.toFixed(2)??"—","vs market")}${sc("Div. Yield",(stock.dividendYield?.toFixed(2)??"0.00")+"%","")}${sc("52W High","$"+(stock.week52High?.toFixed(2)??"—"),"")}${sc("52W Low","$"+(stock.week52Low?.toFixed(2)??"—"),"")}</div></div>${hasCharts?`<div class="charts-grid" style="margin-top:16px"><div class="chart-card"><h4>Revenue History</h4><div style="position:relative;height:220px"><canvas id="revenueChart"></canvas></div></div><div class="chart-card"><h4>Net Income & Free Cash Flow</h4><div style="position:relative;height:220px"><canvas id="earningsChart"></canvas></div></div></div>`:""}<div class="ai-analysis-card"><div class="ai-header"><h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI Investment Analysis <span class="ai-badge">Claude</span></h3><button class="btn-ai" id="runAiBtn" onclick="runAIAnalysis()">Generate Analysis ↗</button></div><div class="ai-content" id="aiContent" style="color:var(--text2);font-style:italic">Click "Generate Analysis" for a Claude-powered investment thesis on ${stock.name}.</div></div><div style="margin-top:8px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ For research purposes only — not investment advice.</div>`;
+  container.innerHTML=`<div class="card"><div class="company-header"><div class="company-logo">${stock.ticker.charAt(0)}</div><div class="company-title"><h2>${stock.name}</h2><div class="co-sub">${stock.ticker} · ${stock.exchange??""} · ${stock.sector??""}</div><div style="display:flex;align-items:center;gap:14px;margin-top:8px"><span style="font-size:28px;font-weight:700">$${stock.price?.toFixed(2)??"—"}</span>${pch}</div></div></div><div class="company-stats">${sc("Market Cap",formatNumber(stock.marketCap),"")}${sc("P/E Ratio",stock.pe?.toFixed?.(1)??stock.pe??"—","trailing")}${sc("EPS (TTM)",stock.eps?"$"+(stock.eps.toFixed?.(2)??stock.eps):"—","")}${sc("Revenue",formatNumber(stock.revenue),"FY")}${sc("Net Income",formatNumber(stock.netIncome),"FY")}${sc("Free Cash Flow",formatNumber(stock.freeCashFlow),"FY")}${sc("Gross Margin",(stock.grossMargin?.toFixed?.(1)??"—")+"%","")}${sc("Net Margin",(stock.netMargin?.toFixed?.(1)??"—")+"%","")}${sc("52W High","$"+(stock.week52High?.toFixed?.(2)??"—"),"")}${sc("52W Low","$"+(stock.week52Low?.toFixed?.(2)??"—"),"")}</div></div>${hasCharts?`<div class="charts-grid" style="margin-top:16px"><div class="chart-card"><h4>Revenue History</h4><div style="position:relative;height:220px"><canvas id="revenueChart"></canvas></div></div><div class="chart-card"><h4>Net Income & Free Cash Flow</h4><div style="position:relative;height:220px"><canvas id="earningsChart"></canvas></div></div></div>`:""}<div class="ai-analysis-card"><div class="ai-header"><h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI Investment Analysis <span class="ai-badge">Claude</span></h3><button class="btn-ai" id="runAiBtn" onclick="runAIAnalysis()">Generate Analysis ↗</button></div><div class="ai-content" id="aiContent" style="color:var(--text2);font-style:italic">Click "Generate Analysis" for a Claude-powered investment thesis on ${stock.name}.</div></div><div style="margin-top:8px;font-size:12px;color:var(--text2);padding:10px 14px;background:var(--bg3);border-radius:8px">⚠ For research purposes only — not investment advice.</div>`;
   if(hasCharts){
     const chartOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#8b949e",font:{size:11}}},y:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#8b949e",font:{size:11},callback:v=>"$"+(v/1e9).toFixed(0)+"B"}}}};
-    const years=stock.years||[2020,2021,2022,2023,2024];
+    const years=stock.years||[];
     companyCharts.revenue=new Chart(document.getElementById("revenueChart"),{type:"bar",data:{labels:years,datasets:[{label:"Revenue",data:stock.revenueHistory,backgroundColor:"rgba(29,158,117,0.7)",borderRadius:5,borderSkipped:false}]},options:{...chartOpts}});
     companyCharts.earnings=new Chart(document.getElementById("earningsChart"),{type:"bar",data:{labels:years,datasets:[{label:"Net Income",data:stock.earningsHistory,backgroundColor:"rgba(88,166,255,0.7)",borderRadius:5,borderSkipped:false},{label:"FCF",data:stock.fcfHistory||[],backgroundColor:"rgba(63,185,80,0.55)",borderRadius:5,borderSkipped:false}]},options:{...chartOpts,plugins:{legend:{display:true,labels:{color:"#8b949e",font:{size:11},boxWidth:10,padding:12}}}}});
   }
   window._currentStock=stock;
 }
-
 async function runAIAnalysis(){
   const stock=window._currentStock;if(!stock)return;
   const btn=document.getElementById("runAiBtn"),content=document.getElementById("aiContent");
@@ -475,20 +397,13 @@ async function runAIAnalysis(){
   btn.disabled=false;btn.textContent="Regenerate ↗";
 }
 
-// ── Routing ──
 function switchView(v){
   document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
   document.getElementById("view-"+v)?.classList.add("active");
   document.querySelector(`[data-view="${v}"]`)?.classList.add("active");
 }
-document.querySelectorAll(".nav-item").forEach(item=>{
-  item.addEventListener("click",e=>{
-    e.preventDefault();const v=item.dataset.view;switchView(v);
-    if(v==="dashboard")renderDashboard();
-    if(v==="intrinsic")populateIntrinsicSelect();
-  });
-});
+document.querySelectorAll(".nav-item").forEach(item=>{item.addEventListener("click",e=>{e.preventDefault();const v=item.dataset.view;switchView(v);if(v==="dashboard")renderDashboard();if(v==="intrinsic")populateIntrinsicSelect()})});
 document.getElementById("searchBtn").addEventListener("click",()=>{const q=document.getElementById("searchInput").value.trim().toUpperCase();if(!q)return;document.getElementById("companyTickerInput").value=q;switchView("company");loadCompanyDetail(q)});
 document.getElementById("searchInput").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("searchBtn").click()});
 document.getElementById("intrinsicLoadBtn").addEventListener("click",()=>{const t=document.getElementById("intrinsicSelect").value;if(t)renderIntrinsicTable(t)});
@@ -505,59 +420,3 @@ document.getElementById("addModal").addEventListener("click",e=>{if(e.target===d
 </script>
 </body>
 </html>
-
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-site-password");
-
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-
-  const sitePassword = process.env.SITE_PASSWORD;
-  const provided = req.headers["x-site-password"];
-
-  if (sitePassword && provided !== sitePassword) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  const { stockData } = req.body || {};
-  if (!stockData) return res.status(400).json({ error: "Missing stockData" });
-
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: "API key not configured" });
-
-  const s = stockData;
-  const prompt = `You are a sell-side equity analyst. Analyse this stock concisely covering: (1) Business quality & moat, (2) Financial metrics, (3) Valuation verdict, (4) Bull vs Bear case, (5) Overall verdict.
-
-Company: ${s.name} (${s.ticker}) | Sector: ${s.sector}
-Price: $${s.price} | Market Cap: ${s.marketCap} | P/E: ${s.pe} | EPS: $${s.eps}
-Revenue: ${s.revenue} | Net Income: ${s.netIncome} | FCF: ${s.freeCashFlow}
-Gross Margin: ${s.grossMargin}% | Net Margin: ${s.netMargin}% | ROE: ${s.roe}%
-Beta: ${s.beta} | 52W: $${s.week52Low}–$${s.week52High}
-${s.description?.substring(0, 300)}
-
-Be direct and opinionated. Use clear headings. Under 500 words.`;
-
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    const data = await response.json();
-    if (data.error) return res.status(500).json({ error: data.error.message });
-    return res.status(200).json({ analysis: data.content?.[0]?.text || "No analysis returned." });
-  } catch (err) {
-    return res.status(500).json({ error: "Failed to reach Anthropic API." });
-  }
-}
